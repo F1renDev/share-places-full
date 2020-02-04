@@ -13,8 +13,8 @@ const app = express();
 
 app.use(bodyParser.json());
 
-//Middleware to return files only from the given folder
 app.use("/uploads/images", express.static(path.join("uploads", "images")));
+app.use(express.static(path.join("public")));
 
 app.use(async (req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -29,25 +29,22 @@ app.use(async (req, res, next) => {
 app.use("/api/places", placesRoutes);
 app.use("/api/users", usersRoutes);
 
-// only runs if a response was not sent untill now
+app.use((req, res, next) => {
+  res.sendFile(path.resolve(__dirname, "public", "index.html"));
+});
+
 app.use((req, res, next) => {
   const error = new HttpError("Could not find this route", 404);
   throw error;
 });
 
-// if used with 4 arguments and if any previous middleware yields an error
-// this function will be treated as a special error handler
 app.use((error, req, res, next) => {
-  //If there was some error (this is error handling middleware)
-  //the uploaded file is going to be delete
-
-  //Multer package adds a new property to the request object - 'file'
   if (req.file) {
     fs.unlink(req.file.path, err => {
       console.log(err);
     });
   }
-  //not sending a response if it was somehow already sent before
+
   if (res.headerSent) {
     return next(error);
   }
@@ -57,7 +54,6 @@ app.use((error, req, res, next) => {
   });
 });
 
-// If the connection to the db was not successfull - the server won't start
 mongoose
   .connect(
     `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0-lhqoo.mongodb.net/${process.env.DB_NAME}?retryWrites=true&w=majority`
